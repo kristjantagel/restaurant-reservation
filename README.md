@@ -1,93 +1,81 @@
-# Smart Restaurant Reservation System
+# Restaurant Reservation
 
-A web application for restaurant table booking with intelligent table recommendations, built as a CGI summer internship 2026 trial project.
+A full-stack table-booking app for restaurants. Guests pick a time and party size on an interactive floor plan, and the app recommends the table that fits them best.
 
-## What This Does
+**Stack:** Java 25 · Spring Boot 3.5 · H2 · React 19 · Vite · REST
 
-Guests browse an interactive visual floor plan of the restaurant and reserve a table in a few steps:
+<!-- Add a screenshot or GIF of the floor plan here, e.g. docs/screenshot.png -->
 
-1. **Filter** — pick a date, time, party size, and zone (indoor / terrace / private room)
-2. **Get a recommendation** — the system scores all available tables based on how well they fit the party size and any preferences (quiet corner, window seat, near kids' play area) and highlights the best match on the floor plan
-3. **Select and confirm** — the guest accepts the recommendation or picks another table, enters their name and email, and confirms the booking
-4. **See the result** — the reserved table immediately turns red on the floor plan
+## How it works
 
-Existing reservations are randomly generated on startup to simulate a realistic occupancy state.
+1. **Search.** Choose a date, time, party size and zone (indoor, terrace or private room). Optionally ask for a quiet corner, a window seat or a spot near the kids' play area.
+2. **Recommendation.** The backend scores every free table by how closely its capacity matches the party and how many of the requested features it has. The best match pulses green on the floor plan.
+3. **Booking.** Accept the recommendation or click any other free table, enter a name and email, and confirm.
+4. **Live floor plan.** The booked table turns red straight away. Bookings last two hours and expire automatically after that.
+
+On startup the app generates random existing bookings, so the floor plan starts out partly occupied.
 
 ## Features
 
-- Visual SVG floor plan with 19 tables across 3 zones (indoor, terrace, private room)
-- Filter by date, time, party size, zone, and seating preferences
-- Score-based recommendation engine — prefers the best capacity fit and matches preferences
-- Tables outside the selected zone are dimmed; recommended table pulses green
-- Reservations auto-expire after their 2-hour window passes
-- Booking confirmation includes a TheMealDB meal suggestion for the visit
-## Tech Stack
+- SVG floor plan with 19 tables across 3 zones. Tables outside the selected zone are dimmed, not hidden, so the whole room stays visible.
+- Score-based recommendation engine with unit tests
+- Double-booking prevention: overlapping times are checked on the server, and party size is validated against table capacity on both client and server
+- A background job marks finished bookings as expired every 60 seconds
+- The booking confirmation suggests a meal from the public TheMealDB API
 
-| Layer | Technology |
-|---|---|
-| Backend | Spring Boot 3.5.0, Java 25 |
-| Database | H2 (in-memory, no setup required) |
-| Frontend | React 19 + Vite, plain SVG for floor plan |
-| API | REST (JSON) |
+## Architecture
 
-## How to Run
+```
+frontend/   React + Vite single-page app (floor plan, filters, booking flow)
+backend/    Spring Boot REST API
+  controller/   /api/tables, /api/recommendations, /api/reservations, /api/meals
+  service/      recommendation scoring, availability, expiry scheduler
+  domain/       RestaurantTable, Reservation, Zone, TableFeature (JPA entities)
+  seeder/       random demo bookings on startup
+```
 
-### Prerequisites
+The data lives in an in-memory H2 database, so it needs no setup and resets on every restart.
 
-- Java 25 JDK
-- Node.js 22+
+## Running it
 
-### Quick start (single command after build)
+**Requirements:** Java 25 JDK and Node.js 22 or newer.
+
+### One server (production-style build)
 
 ```bash
-# 1. Build the frontend
-cd frontend
-npm install
-npm run build
-
-# 2. Copy dist to Spring Boot static resources
+cd frontend && npm install && npm run build
 cp -r dist ../backend/src/main/resources/static/
-
-# 3. Run the backend — serves both API and frontend
-cd ../backend
-./mvnw spring-boot:run
+cd ../backend && ./mvnw spring-boot:run
 ```
 
-Open [http://localhost:8080](http://localhost:8080).
+Open <http://localhost:8080>.
 
-### Development (two terminals, with hot reload)
+### Development, with hot reload
 
 ```bash
-# Terminal 1 — backend
-cd backend
-./mvnw spring-boot:run
+# Terminal 1
+cd backend && ./mvnw spring-boot:run
 
-# Terminal 2 — frontend (proxies /api to localhost:8080)
-cd frontend
-npm install
-npm run dev
+# Terminal 2 (sends /api requests on to port 8080)
+cd frontend && npm install && npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173).
+Open <http://localhost:5173>. The database console is at <http://localhost:8080/h2-console>, with the JDBC URL `jdbc:h2:mem:restaurant`.
 
-### H2 Console
-
-The database inspector is available at [http://localhost:8080/h2-console](http://localhost:8080/h2-console) while the backend is running.
-JDBC URL: `jdbc:h2:mem:restaurant`
-
-### Run backend tests
+### Tests
 
 ```bash
-cd backend
-./mvnw test
+cd backend && ./mvnw test
 ```
 
-## Documentation
+## Design notes
 
-See [`docs/`](docs/) for:
-- [`PLAN.md`](docs/PLAN.md) — phased implementation plan
-- [`DEVLOG.md`](docs/DEVLOG.md) — time log, difficulties, sources, and assumptions
+[`docs/DEVLOG.md`](docs/DEVLOG.md) records the assumptions, the bugs that were hard to fix (such as wrap-around past midnight in time-overlap checks) and how they were solved. [`docs/PLAN.md`](docs/PLAN.md) has the original implementation plan.
 
----
+## Roadmap
 
-*Proovitöö CGI suvepraktikaks 2026*
+- [ ] Persistent database (PostgreSQL) in place of in-memory H2
+- [ ] Staff view for managing bookings and editing the floor plan
+- [ ] Email confirmation and cancellation links
+- [ ] Bookings that run past midnight
+- [ ] Deployment with a public demo link
